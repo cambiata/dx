@@ -8,7 +8,15 @@ function $extend(from, fields) {
 }
 var HxOverrides = function() { };
 $hxClasses["HxOverrides"] = HxOverrides;
-HxOverrides.__name__ = true;
+HxOverrides.__name__ = ["HxOverrides"];
+HxOverrides.dateStr = function(date) {
+	var m = date.getMonth() + 1;
+	var d = date.getDate();
+	var h = date.getHours();
+	var mi = date.getMinutes();
+	var s = date.getSeconds();
+	return date.getFullYear() + "-" + (m < 10?"0" + m:"" + m) + "-" + (d < 10?"0" + d:"" + d) + " " + (h < 10?"0" + h:"" + h) + ":" + (mi < 10?"0" + mi:"" + mi) + ":" + (s < 10?"0" + s:"" + s);
+};
 HxOverrides.strDate = function(s) {
 	var _g = s.length;
 	switch(_g) {
@@ -55,7 +63,7 @@ HxOverrides.iter = function(a) {
 };
 var Lambda = function() { };
 $hxClasses["Lambda"] = Lambda;
-Lambda.__name__ = true;
+Lambda.__name__ = ["Lambda"];
 Lambda.has = function(it,elt) {
 	var $it0 = $iterator(it)();
 	while( $it0.hasNext() ) {
@@ -68,7 +76,7 @@ var List = function() {
 	this.length = 0;
 };
 $hxClasses["List"] = List;
-List.__name__ = true;
+List.__name__ = ["List"];
 List.prototype = {
 	add: function(item) {
 		var x = [item];
@@ -105,11 +113,11 @@ List.prototype = {
 };
 var IMap = function() { };
 $hxClasses["IMap"] = IMap;
-IMap.__name__ = true;
-Math.__name__ = true;
+IMap.__name__ = ["IMap"];
+Math.__name__ = ["Math"];
 var Reflect = function() { };
 $hxClasses["Reflect"] = Reflect;
-Reflect.__name__ = true;
+Reflect.__name__ = ["Reflect"];
 Reflect.field = function(o,field) {
 	try {
 		return o[field];
@@ -136,9 +144,14 @@ Reflect.fields = function(o) {
 Reflect.isFunction = function(f) {
 	return typeof(f) == "function" && !(f.__name__ || f.__ename__);
 };
+Reflect.deleteField = function(o,field) {
+	if(!Object.prototype.hasOwnProperty.call(o,field)) return false;
+	delete(o[field]);
+	return true;
+};
 var Std = function() { };
 $hxClasses["Std"] = Std;
-Std.__name__ = true;
+Std.__name__ = ["Std"];
 Std.string = function(s) {
 	return js.Boot.__string_rec(s,"");
 };
@@ -151,18 +164,74 @@ Std.parseInt = function(x) {
 Std.parseFloat = function(x) {
 	return parseFloat(x);
 };
+var StringBuf = function() {
+	this.b = "";
+};
+$hxClasses["StringBuf"] = StringBuf;
+StringBuf.__name__ = ["StringBuf"];
+StringBuf.prototype = {
+	add: function(x) {
+		this.b += Std.string(x);
+	}
+	,__class__: StringBuf
+};
 var StringTools = function() { };
 $hxClasses["StringTools"] = StringTools;
-StringTools.__name__ = true;
+StringTools.__name__ = ["StringTools"];
+StringTools.htmlEscape = function(s,quotes) {
+	s = s.split("&").join("&amp;").split("<").join("&lt;").split(">").join("&gt;");
+	if(quotes) return s.split("\"").join("&quot;").split("'").join("&#039;"); else return s;
+};
 StringTools.startsWith = function(s,start) {
 	return s.length >= start.length && HxOverrides.substr(s,0,start.length) == start;
+};
+StringTools.lpad = function(s,c,l) {
+	if(c.length <= 0) return s;
+	while(s.length < l) s = c + s;
+	return s;
 };
 StringTools.fastCodeAt = function(s,index) {
 	return s.charCodeAt(index);
 };
+var ValueType = $hxClasses["ValueType"] = { __ename__ : ["ValueType"], __constructs__ : ["TNull","TInt","TFloat","TBool","TObject","TFunction","TClass","TEnum","TUnknown"] };
+ValueType.TNull = ["TNull",0];
+ValueType.TNull.toString = $estr;
+ValueType.TNull.__enum__ = ValueType;
+ValueType.TInt = ["TInt",1];
+ValueType.TInt.toString = $estr;
+ValueType.TInt.__enum__ = ValueType;
+ValueType.TFloat = ["TFloat",2];
+ValueType.TFloat.toString = $estr;
+ValueType.TFloat.__enum__ = ValueType;
+ValueType.TBool = ["TBool",3];
+ValueType.TBool.toString = $estr;
+ValueType.TBool.__enum__ = ValueType;
+ValueType.TObject = ["TObject",4];
+ValueType.TObject.toString = $estr;
+ValueType.TObject.__enum__ = ValueType;
+ValueType.TFunction = ["TFunction",5];
+ValueType.TFunction.toString = $estr;
+ValueType.TFunction.__enum__ = ValueType;
+ValueType.TClass = function(c) { var $x = ["TClass",6,c]; $x.__enum__ = ValueType; $x.toString = $estr; return $x; };
+ValueType.TEnum = function(e) { var $x = ["TEnum",7,e]; $x.__enum__ = ValueType; $x.toString = $estr; return $x; };
+ValueType.TUnknown = ["TUnknown",8];
+ValueType.TUnknown.toString = $estr;
+ValueType.TUnknown.__enum__ = ValueType;
 var Type = function() { };
 $hxClasses["Type"] = Type;
-Type.__name__ = true;
+Type.__name__ = ["Type"];
+Type.getClass = function(o) {
+	if(o == null) return null;
+	if((o instanceof Array) && o.__enum__ == null) return Array; else return o.__class__;
+};
+Type.getClassName = function(c) {
+	var a = c.__name__;
+	return a.join(".");
+};
+Type.getEnumName = function(e) {
+	var a = e.__ename__;
+	return a.join(".");
+};
 Type.resolveClass = function(name) {
 	var cl = $hxClasses[name];
 	if(cl == null || !cl.__name__) return null;
@@ -191,16 +260,299 @@ Type.getEnumConstructs = function(e) {
 	var a = e.__constructs__;
 	return a.slice();
 };
+Type["typeof"] = function(v) {
+	var _g = typeof(v);
+	switch(_g) {
+	case "boolean":
+		return ValueType.TBool;
+	case "string":
+		return ValueType.TClass(String);
+	case "number":
+		if(Math.ceil(v) == v % 2147483648.0) return ValueType.TInt;
+		return ValueType.TFloat;
+	case "object":
+		if(v == null) return ValueType.TNull;
+		var e = v.__enum__;
+		if(e != null) return ValueType.TEnum(e);
+		var c;
+		if((v instanceof Array) && v.__enum__ == null) c = Array; else c = v.__class__;
+		if(c != null) return ValueType.TClass(c);
+		return ValueType.TObject;
+	case "function":
+		if(v.__name__ || v.__ename__) return ValueType.TObject;
+		return ValueType.TFunction;
+	case "undefined":
+		return ValueType.TNull;
+	default:
+		return ValueType.TUnknown;
+	}
+};
 var dx = {};
 dx.client = {};
 dx.client.Main = function() { };
 $hxClasses["dx.client.Main"] = dx.client.Main;
-dx.client.Main.__name__ = true;
+dx.client.Main.__name__ = ["dx","client","Main"];
 dx.client.Main.main = function() {
-	var page = new hxdom.js.Boot();
-	console.log(page);
+	new js.JQuery("html").ready(function(e) {
+		dx.client.Main.init();
+	});
+};
+dx.client.Main.init = function() {
+	js.Lib.alert("init");
 };
 var haxe = {};
+haxe.Serializer = function() {
+	this.buf = new StringBuf();
+	this.cache = new Array();
+	this.useCache = haxe.Serializer.USE_CACHE;
+	this.useEnumIndex = haxe.Serializer.USE_ENUM_INDEX;
+	this.shash = new haxe.ds.StringMap();
+	this.scount = 0;
+};
+$hxClasses["haxe.Serializer"] = haxe.Serializer;
+haxe.Serializer.__name__ = ["haxe","Serializer"];
+haxe.Serializer.prototype = {
+	toString: function() {
+		return this.buf.b;
+	}
+	,serializeString: function(s) {
+		var x = this.shash.get(s);
+		if(x != null) {
+			this.buf.b += "R";
+			if(x == null) this.buf.b += "null"; else this.buf.b += "" + x;
+			return;
+		}
+		this.shash.set(s,this.scount++);
+		this.buf.b += "y";
+		s = encodeURIComponent(s);
+		if(s.length == null) this.buf.b += "null"; else this.buf.b += "" + s.length;
+		this.buf.b += ":";
+		if(s == null) this.buf.b += "null"; else this.buf.b += "" + s;
+	}
+	,serializeRef: function(v) {
+		var vt = typeof(v);
+		var _g1 = 0;
+		var _g = this.cache.length;
+		while(_g1 < _g) {
+			var i = _g1++;
+			var ci = this.cache[i];
+			if(typeof(ci) == vt && ci == v) {
+				this.buf.b += "r";
+				if(i == null) this.buf.b += "null"; else this.buf.b += "" + i;
+				return true;
+			}
+		}
+		this.cache.push(v);
+		return false;
+	}
+	,serializeFields: function(v) {
+		var _g = 0;
+		var _g1 = Reflect.fields(v);
+		while(_g < _g1.length) {
+			var f = _g1[_g];
+			++_g;
+			this.serializeString(f);
+			this.serialize(Reflect.field(v,f));
+		}
+		this.buf.b += "g";
+	}
+	,serialize: function(v) {
+		{
+			var _g = Type["typeof"](v);
+			switch(_g[1]) {
+			case 0:
+				this.buf.b += "n";
+				break;
+			case 1:
+				var v1 = v;
+				if(v1 == 0) {
+					this.buf.b += "z";
+					return;
+				}
+				this.buf.b += "i";
+				if(v1 == null) this.buf.b += "null"; else this.buf.b += "" + v1;
+				break;
+			case 2:
+				var v2 = v;
+				if(Math.isNaN(v2)) this.buf.b += "k"; else if(!Math.isFinite(v2)) if(v2 < 0) this.buf.b += "m"; else this.buf.b += "p"; else {
+					this.buf.b += "d";
+					if(v2 == null) this.buf.b += "null"; else this.buf.b += "" + v2;
+				}
+				break;
+			case 3:
+				if(v) this.buf.b += "t"; else this.buf.b += "f";
+				break;
+			case 6:
+				var c = _g[2];
+				if(c == String) {
+					this.serializeString(v);
+					return;
+				}
+				if(this.useCache && this.serializeRef(v)) return;
+				switch(c) {
+				case Array:
+					var ucount = 0;
+					this.buf.b += "a";
+					var l = v.length;
+					var _g1 = 0;
+					while(_g1 < l) {
+						var i = _g1++;
+						if(v[i] == null) ucount++; else {
+							if(ucount > 0) {
+								if(ucount == 1) this.buf.b += "n"; else {
+									this.buf.b += "u";
+									if(ucount == null) this.buf.b += "null"; else this.buf.b += "" + ucount;
+								}
+								ucount = 0;
+							}
+							this.serialize(v[i]);
+						}
+					}
+					if(ucount > 0) {
+						if(ucount == 1) this.buf.b += "n"; else {
+							this.buf.b += "u";
+							if(ucount == null) this.buf.b += "null"; else this.buf.b += "" + ucount;
+						}
+					}
+					this.buf.b += "h";
+					break;
+				case List:
+					this.buf.b += "l";
+					var v3 = v;
+					var $it0 = v3.iterator();
+					while( $it0.hasNext() ) {
+						var i1 = $it0.next();
+						this.serialize(i1);
+					}
+					this.buf.b += "h";
+					break;
+				case Date:
+					var d = v;
+					this.buf.b += "v";
+					this.buf.add(HxOverrides.dateStr(d));
+					break;
+				case haxe.ds.StringMap:
+					this.buf.b += "b";
+					var v4 = v;
+					var $it1 = v4.keys();
+					while( $it1.hasNext() ) {
+						var k = $it1.next();
+						this.serializeString(k);
+						this.serialize(v4.get(k));
+					}
+					this.buf.b += "h";
+					break;
+				case haxe.ds.IntMap:
+					this.buf.b += "q";
+					var v5 = v;
+					var $it2 = v5.keys();
+					while( $it2.hasNext() ) {
+						var k1 = $it2.next();
+						this.buf.b += ":";
+						if(k1 == null) this.buf.b += "null"; else this.buf.b += "" + k1;
+						this.serialize(v5.get(k1));
+					}
+					this.buf.b += "h";
+					break;
+				case haxe.ds.ObjectMap:
+					this.buf.b += "M";
+					var v6 = v;
+					var $it3 = v6.keys();
+					while( $it3.hasNext() ) {
+						var k2 = $it3.next();
+						var id = Reflect.field(k2,"__id__");
+						Reflect.deleteField(k2,"__id__");
+						this.serialize(k2);
+						k2.__id__ = id;
+						this.serialize(v6.h[k2.__id__]);
+					}
+					this.buf.b += "h";
+					break;
+				case haxe.io.Bytes:
+					var v7 = v;
+					var i2 = 0;
+					var max = v7.length - 2;
+					var charsBuf = new StringBuf();
+					var b64 = haxe.Serializer.BASE64;
+					while(i2 < max) {
+						var b1 = v7.get(i2++);
+						var b2 = v7.get(i2++);
+						var b3 = v7.get(i2++);
+						charsBuf.add(b64.charAt(b1 >> 2));
+						charsBuf.add(b64.charAt((b1 << 4 | b2 >> 4) & 63));
+						charsBuf.add(b64.charAt((b2 << 2 | b3 >> 6) & 63));
+						charsBuf.add(b64.charAt(b3 & 63));
+					}
+					if(i2 == max) {
+						var b11 = v7.get(i2++);
+						var b21 = v7.get(i2++);
+						charsBuf.add(b64.charAt(b11 >> 2));
+						charsBuf.add(b64.charAt((b11 << 4 | b21 >> 4) & 63));
+						charsBuf.add(b64.charAt(b21 << 2 & 63));
+					} else if(i2 == max + 1) {
+						var b12 = v7.get(i2++);
+						charsBuf.add(b64.charAt(b12 >> 2));
+						charsBuf.add(b64.charAt(b12 << 4 & 63));
+					}
+					var chars = charsBuf.b;
+					this.buf.b += "s";
+					if(chars.length == null) this.buf.b += "null"; else this.buf.b += "" + chars.length;
+					this.buf.b += ":";
+					if(chars == null) this.buf.b += "null"; else this.buf.b += "" + chars;
+					break;
+				default:
+					if(this.useCache) this.cache.pop();
+					if(v.hxSerialize != null) {
+						this.buf.b += "C";
+						this.serializeString(Type.getClassName(c));
+						if(this.useCache) this.cache.push(v);
+						v.hxSerialize(this);
+						this.buf.b += "g";
+					} else {
+						this.buf.b += "c";
+						this.serializeString(Type.getClassName(c));
+						if(this.useCache) this.cache.push(v);
+						this.serializeFields(v);
+					}
+				}
+				break;
+			case 4:
+				if(this.useCache && this.serializeRef(v)) return;
+				this.buf.b += "o";
+				this.serializeFields(v);
+				break;
+			case 7:
+				var e = _g[2];
+				if(this.useCache) {
+					if(this.serializeRef(v)) return;
+					this.cache.pop();
+				}
+				if(this.useEnumIndex) this.buf.b += "j"; else this.buf.b += "w";
+				this.serializeString(Type.getEnumName(e));
+				if(this.useEnumIndex) {
+					this.buf.b += ":";
+					this.buf.b += Std.string(v[1]);
+				} else this.serializeString(v[0]);
+				this.buf.b += ":";
+				var l1 = v.length;
+				this.buf.b += Std.string(l1 - 2);
+				var _g11 = 2;
+				while(_g11 < l1) {
+					var i3 = _g11++;
+					this.serialize(v[i3]);
+				}
+				if(this.useCache) this.cache.push(v);
+				break;
+			case 5:
+				throw "Cannot serialize function";
+				break;
+			default:
+				throw "Cannot serialize " + Std.string(v);
+			}
+		}
+	}
+	,__class__: haxe.Serializer
+};
 haxe.Unserializer = function(buf) {
 	this.buf = buf;
 	this.length = buf.length;
@@ -215,7 +567,7 @@ haxe.Unserializer = function(buf) {
 	this.setResolver(r);
 };
 $hxClasses["haxe.Unserializer"] = haxe.Unserializer;
-haxe.Unserializer.__name__ = true;
+haxe.Unserializer.__name__ = ["haxe","Unserializer"];
 haxe.Unserializer.initCodes = function() {
 	var codes = new Array();
 	var _g1 = 0;
@@ -473,7 +825,7 @@ haxe.ds.IntMap = function() {
 	this.h = { };
 };
 $hxClasses["haxe.ds.IntMap"] = haxe.ds.IntMap;
-haxe.ds.IntMap.__name__ = true;
+haxe.ds.IntMap.__name__ = ["haxe","ds","IntMap"];
 haxe.ds.IntMap.__interfaces__ = [IMap];
 haxe.ds.IntMap.prototype = {
 	set: function(key,value) {
@@ -482,6 +834,13 @@ haxe.ds.IntMap.prototype = {
 	,get: function(key) {
 		return this.h[key];
 	}
+	,keys: function() {
+		var a = [];
+		for( var key in this.h ) {
+		if(this.h.hasOwnProperty(key)) a.push(key | 0);
+		}
+		return HxOverrides.iter(a);
+	}
 	,__class__: haxe.ds.IntMap
 };
 haxe.ds.ObjectMap = function() {
@@ -489,7 +848,7 @@ haxe.ds.ObjectMap = function() {
 	this.h.__keys__ = { };
 };
 $hxClasses["haxe.ds.ObjectMap"] = haxe.ds.ObjectMap;
-haxe.ds.ObjectMap.__name__ = true;
+haxe.ds.ObjectMap.__name__ = ["haxe","ds","ObjectMap"];
 haxe.ds.ObjectMap.__interfaces__ = [IMap];
 haxe.ds.ObjectMap.prototype = {
 	set: function(key,value) {
@@ -497,13 +856,20 @@ haxe.ds.ObjectMap.prototype = {
 		this.h[id] = value;
 		this.h.__keys__[id] = key;
 	}
+	,keys: function() {
+		var a = [];
+		for( var key in this.h.__keys__ ) {
+		if(this.h.hasOwnProperty(key)) a.push(this.h.__keys__[key]);
+		}
+		return HxOverrides.iter(a);
+	}
 	,__class__: haxe.ds.ObjectMap
 };
 haxe.ds.StringMap = function() {
 	this.h = { };
 };
 $hxClasses["haxe.ds.StringMap"] = haxe.ds.StringMap;
-haxe.ds.StringMap.__name__ = true;
+haxe.ds.StringMap.__name__ = ["haxe","ds","StringMap"];
 haxe.ds.StringMap.__interfaces__ = [IMap];
 haxe.ds.StringMap.prototype = {
 	set: function(key,value) {
@@ -530,7 +896,7 @@ haxe.io.Bytes = function(length,b) {
 	this.b = b;
 };
 $hxClasses["haxe.io.Bytes"] = haxe.io.Bytes;
-haxe.io.Bytes.__name__ = true;
+haxe.io.Bytes.__name__ = ["haxe","io","Bytes"];
 haxe.io.Bytes.alloc = function(length) {
 	var a = new Array();
 	var _g = 0;
@@ -541,13 +907,16 @@ haxe.io.Bytes.alloc = function(length) {
 	return new haxe.io.Bytes(length,a);
 };
 haxe.io.Bytes.prototype = {
-	set: function(pos,v) {
+	get: function(pos) {
+		return this.b[pos];
+	}
+	,set: function(pos,v) {
 		this.b[pos] = v & 255;
 	}
 	,__class__: haxe.io.Bytes
 };
 var hxdom = {};
-hxdom.Attr = $hxClasses["hxdom.Attr"] = { __ename__ : true, __constructs__ : ["Accept","AcceptCharset","Accesskey","Action","Align","Alt","Async","Autocomplete","Autofocus","Autoplay","Bgcolor","Border","Buffered","Challenge","Charset","Checked","Cite","ClassName","Code","Codebase","Color","Cols","Colspan","Content","Contenteditable","Contextmenu","Controls","Coords","Data","Datetime","Default","Defer","Dir","Dirname","Disabled","Download","Draggable","Dropzone","Enctype","For","Form","Headers","Height","Hidden","High","Href","Hreflang","HttpEquiv","Icon","Id","Ismap","Itemprop","Keytype","Kind","Label","Lang","Language","List","Loop","Low","Manifest","Max","Maxlength","Media","Method","Min","Multiple","Name","Novalidate","Open","Optimum","Pattern","Ping","Placeholder","Poster","Preload","Pubdate","Radiogroup","Readonly","Rel","Required","Reversed","Rows","Rowspan","Sandbox","Spellcheck","Scope","Scoped","Seamless","Selected","Shape","Size","Sizes","Span","Src","Srcdoc","Srclang","Start","Step","Summary","Tabindex","Target","Title","Type","Usemap","Value","Width","Wrap"] };
+hxdom.Attr = $hxClasses["hxdom.Attr"] = { __ename__ : ["hxdom","Attr"], __constructs__ : ["Accept","AcceptCharset","Accesskey","Action","Align","Alt","Async","Autocomplete","Autofocus","Autoplay","Bgcolor","Border","Buffered","Challenge","Charset","Checked","Cite","ClassName","Code","Codebase","Color","Cols","Colspan","Content","Contenteditable","Contextmenu","Controls","Coords","Data","Datetime","Default","Defer","Dir","Dirname","Disabled","Download","Draggable","Dropzone","Enctype","For","Form","Headers","Height","Hidden","High","Href","Hreflang","HttpEquiv","Icon","Id","Ismap","Itemprop","Keytype","Kind","Label","Lang","Language","List","Loop","Low","Manifest","Max","Maxlength","Media","Method","Min","Multiple","Name","Novalidate","Open","Optimum","Pattern","Ping","Placeholder","Poster","Preload","Pubdate","Radiogroup","Readonly","Rel","Required","Reversed","Rows","Rowspan","Sandbox","Spellcheck","Scope","Scoped","Seamless","Selected","Shape","Size","Sizes","Span","Src","Srcdoc","Srclang","Start","Step","Summary","Tabindex","Target","Title","Type","Usemap","Value","Width","Wrap"] };
 hxdom.Attr.Accept = ["Accept",0];
 hxdom.Attr.Accept.toString = $estr;
 hxdom.Attr.Accept.__enum__ = hxdom.Attr;
@@ -874,7 +1243,7 @@ hxdom.Attr.Wrap.toString = $estr;
 hxdom.Attr.Wrap.__enum__ = hxdom.Attr;
 hxdom.DomTools = function() { };
 $hxClasses["hxdom.DomTools"] = hxdom.DomTools;
-hxdom.DomTools.__name__ = true;
+hxdom.DomTools.__name__ = ["hxdom","DomTools"];
 hxdom.DomTools.add = function(parent,child) {
 	parent.appendChild(child);
 	return parent;
@@ -998,7 +1367,7 @@ hxdom.DomTools.__createEvent = function(cls,type,bubbles,cancelable) {
 	evt.initEvent(type,bubbles,cancelable);
 	return evt;
 };
-hxdom.InputType = $hxClasses["hxdom.InputType"] = { __ename__ : true, __constructs__ : ["Button","Checkbox","Color","IDate","DateTime","DateTimeLocal","Email","File","Hidden","Image","Month","Number","Password","Radio","Range","Reset","Search","Submit","Telephone","IText","Time","Url","Week"] };
+hxdom.InputType = $hxClasses["hxdom.InputType"] = { __ename__ : ["hxdom","InputType"], __constructs__ : ["Button","Checkbox","Color","IDate","DateTime","DateTimeLocal","Email","File","Hidden","Image","Month","Number","Password","Radio","Range","Reset","Search","Submit","Telephone","IText","Time","Url","Week"] };
 hxdom.InputType.Button = ["Button",0];
 hxdom.InputType.Button.toString = $estr;
 hxdom.InputType.Button.__enum__ = hxdom.InputType;
@@ -1068,7 +1437,7 @@ hxdom.InputType.Url.__enum__ = hxdom.InputType;
 hxdom.InputType.Week = ["Week",22];
 hxdom.InputType.Week.toString = $estr;
 hxdom.InputType.Week.__enum__ = hxdom.InputType;
-hxdom.ButtonType = $hxClasses["hxdom.ButtonType"] = { __ename__ : true, __constructs__ : ["Button","Submit","Reset"] };
+hxdom.ButtonType = $hxClasses["hxdom.ButtonType"] = { __ename__ : ["hxdom","ButtonType"], __constructs__ : ["Button","Submit","Reset"] };
 hxdom.ButtonType.Button = ["Button",0];
 hxdom.ButtonType.Button.toString = $estr;
 hxdom.ButtonType.Button.__enum__ = hxdom.ButtonType;
@@ -1084,7 +1453,7 @@ hxdom.VirtualNode = function(node) {
 	this.id = hxdom.VirtualNode.ID++;
 };
 $hxClasses["hxdom.VirtualNode"] = hxdom.VirtualNode;
-hxdom.VirtualNode.__name__ = true;
+hxdom.VirtualNode.__name__ = ["hxdom","VirtualNode"];
 hxdom.VirtualNode.buildElement = function(cls,tagName) {
 	var elem = window.document.createElement(tagName);
 	return elem;
@@ -1138,7 +1507,7 @@ hxdom._Elements.VirtualNodeIterator = function(node) {
 	this.child = node.node.firstChild;
 };
 $hxClasses["hxdom._Elements.VirtualNodeIterator"] = hxdom._Elements.VirtualNodeIterator;
-hxdom._Elements.VirtualNodeIterator.__name__ = true;
+hxdom._Elements.VirtualNodeIterator.__name__ = ["hxdom","_Elements","VirtualNodeIterator"];
 hxdom._Elements.VirtualNodeIterator.prototype = {
 	iterator: function() {
 		return this;
@@ -1157,7 +1526,7 @@ hxdom.VirtualElement = function(element) {
 	hxdom.VirtualNode.call(this,element);
 };
 $hxClasses["hxdom.VirtualElement"] = hxdom.VirtualElement;
-hxdom.VirtualElement.__name__ = true;
+hxdom.VirtualElement.__name__ = ["hxdom","VirtualElement"];
 hxdom.VirtualElement.__super__ = hxdom.VirtualNode;
 hxdom.VirtualElement.prototype = $extend(hxdom.VirtualNode.prototype,{
 	__class__: hxdom.VirtualElement
@@ -1166,7 +1535,7 @@ hxdom.EAnchor = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(HTMLAnchorElement,"A"));
 };
 $hxClasses["hxdom.EAnchor"] = hxdom.EAnchor;
-hxdom.EAnchor.__name__ = true;
+hxdom.EAnchor.__name__ = ["hxdom","EAnchor"];
 hxdom.EAnchor.__super__ = hxdom.VirtualElement;
 hxdom.EAnchor.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.EAnchor
@@ -1175,7 +1544,7 @@ hxdom.EAbbr = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(Element,"ABBR"));
 };
 $hxClasses["hxdom.EAbbr"] = hxdom.EAbbr;
-hxdom.EAbbr.__name__ = true;
+hxdom.EAbbr.__name__ = ["hxdom","EAbbr"];
 hxdom.EAbbr.__super__ = hxdom.VirtualElement;
 hxdom.EAbbr.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.EAbbr
@@ -1184,7 +1553,7 @@ hxdom.EAddress = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(Element,"ADDRESS"));
 };
 $hxClasses["hxdom.EAddress"] = hxdom.EAddress;
-hxdom.EAddress.__name__ = true;
+hxdom.EAddress.__name__ = ["hxdom","EAddress"];
 hxdom.EAddress.__super__ = hxdom.VirtualElement;
 hxdom.EAddress.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.EAddress
@@ -1193,7 +1562,7 @@ hxdom.EArea = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(Element,"AREA"));
 };
 $hxClasses["hxdom.EArea"] = hxdom.EArea;
-hxdom.EArea.__name__ = true;
+hxdom.EArea.__name__ = ["hxdom","EArea"];
 hxdom.EArea.__super__ = hxdom.VirtualElement;
 hxdom.EArea.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.EArea
@@ -1202,7 +1571,7 @@ hxdom.EArticle = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(Element,"ARTICLE"));
 };
 $hxClasses["hxdom.EArticle"] = hxdom.EArticle;
-hxdom.EArticle.__name__ = true;
+hxdom.EArticle.__name__ = ["hxdom","EArticle"];
 hxdom.EArticle.__super__ = hxdom.VirtualElement;
 hxdom.EArticle.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.EArticle
@@ -1211,7 +1580,7 @@ hxdom.EAside = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(Element,"ASIDE"));
 };
 $hxClasses["hxdom.EAside"] = hxdom.EAside;
-hxdom.EAside.__name__ = true;
+hxdom.EAside.__name__ = ["hxdom","EAside"];
 hxdom.EAside.__super__ = hxdom.VirtualElement;
 hxdom.EAside.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.EAside
@@ -1220,7 +1589,7 @@ hxdom.EAudio = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(HTMLAudioElement,"AUDIO"));
 };
 $hxClasses["hxdom.EAudio"] = hxdom.EAudio;
-hxdom.EAudio.__name__ = true;
+hxdom.EAudio.__name__ = ["hxdom","EAudio"];
 hxdom.EAudio.__super__ = hxdom.VirtualElement;
 hxdom.EAudio.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.EAudio
@@ -1229,7 +1598,7 @@ hxdom.EBold = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(Element,"B"));
 };
 $hxClasses["hxdom.EBold"] = hxdom.EBold;
-hxdom.EBold.__name__ = true;
+hxdom.EBold.__name__ = ["hxdom","EBold"];
 hxdom.EBold.__super__ = hxdom.VirtualElement;
 hxdom.EBold.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.EBold
@@ -1238,7 +1607,7 @@ hxdom.EBase = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(HTMLBaseElement,"BASE"));
 };
 $hxClasses["hxdom.EBase"] = hxdom.EBase;
-hxdom.EBase.__name__ = true;
+hxdom.EBase.__name__ = ["hxdom","EBase"];
 hxdom.EBase.__super__ = hxdom.VirtualElement;
 hxdom.EBase.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.EBase
@@ -1247,7 +1616,7 @@ hxdom.EBiIsolation = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(Element,"BDI"));
 };
 $hxClasses["hxdom.EBiIsolation"] = hxdom.EBiIsolation;
-hxdom.EBiIsolation.__name__ = true;
+hxdom.EBiIsolation.__name__ = ["hxdom","EBiIsolation"];
 hxdom.EBiIsolation.__super__ = hxdom.VirtualElement;
 hxdom.EBiIsolation.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.EBiIsolation
@@ -1256,7 +1625,7 @@ hxdom.EBiOverride = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(Element,"BDO"));
 };
 $hxClasses["hxdom.EBiOverride"] = hxdom.EBiOverride;
-hxdom.EBiOverride.__name__ = true;
+hxdom.EBiOverride.__name__ = ["hxdom","EBiOverride"];
 hxdom.EBiOverride.__super__ = hxdom.VirtualElement;
 hxdom.EBiOverride.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.EBiOverride
@@ -1265,7 +1634,7 @@ hxdom.EBlockQuote = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(Element,"BLOCKQUOTE"));
 };
 $hxClasses["hxdom.EBlockQuote"] = hxdom.EBlockQuote;
-hxdom.EBlockQuote.__name__ = true;
+hxdom.EBlockQuote.__name__ = ["hxdom","EBlockQuote"];
 hxdom.EBlockQuote.__super__ = hxdom.VirtualElement;
 hxdom.EBlockQuote.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.EBlockQuote
@@ -1274,7 +1643,7 @@ hxdom.EBody = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(HTMLBodyElement,"BODY"));
 };
 $hxClasses["hxdom.EBody"] = hxdom.EBody;
-hxdom.EBody.__name__ = true;
+hxdom.EBody.__name__ = ["hxdom","EBody"];
 hxdom.EBody.__super__ = hxdom.VirtualElement;
 hxdom.EBody.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.EBody
@@ -1283,7 +1652,7 @@ hxdom.EBreak = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(HTMLBRElement,"BR"));
 };
 $hxClasses["hxdom.EBreak"] = hxdom.EBreak;
-hxdom.EBreak.__name__ = true;
+hxdom.EBreak.__name__ = ["hxdom","EBreak"];
 hxdom.EBreak.__super__ = hxdom.VirtualElement;
 hxdom.EBreak.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.EBreak
@@ -1304,7 +1673,7 @@ hxdom.EButton = function(type) {
 	}
 };
 $hxClasses["hxdom.EButton"] = hxdom.EButton;
-hxdom.EButton.__name__ = true;
+hxdom.EButton.__name__ = ["hxdom","EButton"];
 hxdom.EButton.__super__ = hxdom.VirtualElement;
 hxdom.EButton.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.EButton
@@ -1313,7 +1682,7 @@ hxdom.ECanvas = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(HTMLCanvasElement,"CANVAS"));
 };
 $hxClasses["hxdom.ECanvas"] = hxdom.ECanvas;
-hxdom.ECanvas.__name__ = true;
+hxdom.ECanvas.__name__ = ["hxdom","ECanvas"];
 hxdom.ECanvas.__super__ = hxdom.VirtualElement;
 hxdom.ECanvas.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.ECanvas
@@ -1322,7 +1691,7 @@ hxdom.ECaption = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(Element,"CAPTION"));
 };
 $hxClasses["hxdom.ECaption"] = hxdom.ECaption;
-hxdom.ECaption.__name__ = true;
+hxdom.ECaption.__name__ = ["hxdom","ECaption"];
 hxdom.ECaption.__super__ = hxdom.VirtualElement;
 hxdom.ECaption.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.ECaption
@@ -1331,7 +1700,7 @@ hxdom.ECite = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(Element,"CITE"));
 };
 $hxClasses["hxdom.ECite"] = hxdom.ECite;
-hxdom.ECite.__name__ = true;
+hxdom.ECite.__name__ = ["hxdom","ECite"];
 hxdom.ECite.__super__ = hxdom.VirtualElement;
 hxdom.ECite.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.ECite
@@ -1340,7 +1709,7 @@ hxdom.ECode = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(Element,"CODE"));
 };
 $hxClasses["hxdom.ECode"] = hxdom.ECode;
-hxdom.ECode.__name__ = true;
+hxdom.ECode.__name__ = ["hxdom","ECode"];
 hxdom.ECode.__super__ = hxdom.VirtualElement;
 hxdom.ECode.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.ECode
@@ -1349,7 +1718,7 @@ hxdom.EColumn = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(Element,"COL"));
 };
 $hxClasses["hxdom.EColumn"] = hxdom.EColumn;
-hxdom.EColumn.__name__ = true;
+hxdom.EColumn.__name__ = ["hxdom","EColumn"];
 hxdom.EColumn.__super__ = hxdom.VirtualElement;
 hxdom.EColumn.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.EColumn
@@ -1358,7 +1727,7 @@ hxdom.EColumnGroup = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(Element,"COLGROUP"));
 };
 $hxClasses["hxdom.EColumnGroup"] = hxdom.EColumnGroup;
-hxdom.EColumnGroup.__name__ = true;
+hxdom.EColumnGroup.__name__ = ["hxdom","EColumnGroup"];
 hxdom.EColumnGroup.__super__ = hxdom.VirtualElement;
 hxdom.EColumnGroup.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.EColumnGroup
@@ -1367,7 +1736,7 @@ hxdom.EData = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(Element,"DATA"));
 };
 $hxClasses["hxdom.EData"] = hxdom.EData;
-hxdom.EData.__name__ = true;
+hxdom.EData.__name__ = ["hxdom","EData"];
 hxdom.EData.__super__ = hxdom.VirtualElement;
 hxdom.EData.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.EData
@@ -1376,7 +1745,7 @@ hxdom.EDataList = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(HTMLDataListElement,"DATALIST"));
 };
 $hxClasses["hxdom.EDataList"] = hxdom.EDataList;
-hxdom.EDataList.__name__ = true;
+hxdom.EDataList.__name__ = ["hxdom","EDataList"];
 hxdom.EDataList.__super__ = hxdom.VirtualElement;
 hxdom.EDataList.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.EDataList
@@ -1385,7 +1754,7 @@ hxdom.EDescription = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(Element,"DD"));
 };
 $hxClasses["hxdom.EDescription"] = hxdom.EDescription;
-hxdom.EDescription.__name__ = true;
+hxdom.EDescription.__name__ = ["hxdom","EDescription"];
 hxdom.EDescription.__super__ = hxdom.VirtualElement;
 hxdom.EDescription.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.EDescription
@@ -1394,7 +1763,7 @@ hxdom.EDeleted = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(Element,"DEL"));
 };
 $hxClasses["hxdom.EDeleted"] = hxdom.EDeleted;
-hxdom.EDeleted.__name__ = true;
+hxdom.EDeleted.__name__ = ["hxdom","EDeleted"];
 hxdom.EDeleted.__super__ = hxdom.VirtualElement;
 hxdom.EDeleted.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.EDeleted
@@ -1403,7 +1772,7 @@ hxdom.EDetails = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(HTMLDetailsElement,"DETAILS"));
 };
 $hxClasses["hxdom.EDetails"] = hxdom.EDetails;
-hxdom.EDetails.__name__ = true;
+hxdom.EDetails.__name__ = ["hxdom","EDetails"];
 hxdom.EDetails.__super__ = hxdom.VirtualElement;
 hxdom.EDetails.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.EDetails
@@ -1412,7 +1781,7 @@ hxdom.EDefinition = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(Element,"DEFINITION"));
 };
 $hxClasses["hxdom.EDefinition"] = hxdom.EDefinition;
-hxdom.EDefinition.__name__ = true;
+hxdom.EDefinition.__name__ = ["hxdom","EDefinition"];
 hxdom.EDefinition.__super__ = hxdom.VirtualElement;
 hxdom.EDefinition.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.EDefinition
@@ -1421,7 +1790,7 @@ hxdom.EDiv = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(HTMLDivElement,"DIV"));
 };
 $hxClasses["hxdom.EDiv"] = hxdom.EDiv;
-hxdom.EDiv.__name__ = true;
+hxdom.EDiv.__name__ = ["hxdom","EDiv"];
 hxdom.EDiv.__super__ = hxdom.VirtualElement;
 hxdom.EDiv.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.EDiv
@@ -1430,7 +1799,7 @@ hxdom.EDescriptionList = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(HTMLDListElement,"DL"));
 };
 $hxClasses["hxdom.EDescriptionList"] = hxdom.EDescriptionList;
-hxdom.EDescriptionList.__name__ = true;
+hxdom.EDescriptionList.__name__ = ["hxdom","EDescriptionList"];
 hxdom.EDescriptionList.__super__ = hxdom.VirtualElement;
 hxdom.EDescriptionList.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.EDescriptionList
@@ -1439,7 +1808,7 @@ hxdom.EDefinitionTerm = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(Element,"DT"));
 };
 $hxClasses["hxdom.EDefinitionTerm"] = hxdom.EDefinitionTerm;
-hxdom.EDefinitionTerm.__name__ = true;
+hxdom.EDefinitionTerm.__name__ = ["hxdom","EDefinitionTerm"];
 hxdom.EDefinitionTerm.__super__ = hxdom.VirtualElement;
 hxdom.EDefinitionTerm.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.EDefinitionTerm
@@ -1448,7 +1817,7 @@ hxdom.EEmphasis = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(Element,"EM"));
 };
 $hxClasses["hxdom.EEmphasis"] = hxdom.EEmphasis;
-hxdom.EEmphasis.__name__ = true;
+hxdom.EEmphasis.__name__ = ["hxdom","EEmphasis"];
 hxdom.EEmphasis.__super__ = hxdom.VirtualElement;
 hxdom.EEmphasis.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.EEmphasis
@@ -1457,7 +1826,7 @@ hxdom.EEmbed = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(HTMLEmbedElement,"EMBED"));
 };
 $hxClasses["hxdom.EEmbed"] = hxdom.EEmbed;
-hxdom.EEmbed.__name__ = true;
+hxdom.EEmbed.__name__ = ["hxdom","EEmbed"];
 hxdom.EEmbed.__super__ = hxdom.VirtualElement;
 hxdom.EEmbed.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.EEmbed
@@ -1466,7 +1835,7 @@ hxdom.EFieldSet = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(HTMLFieldSetElement,"FIELDSET"));
 };
 $hxClasses["hxdom.EFieldSet"] = hxdom.EFieldSet;
-hxdom.EFieldSet.__name__ = true;
+hxdom.EFieldSet.__name__ = ["hxdom","EFieldSet"];
 hxdom.EFieldSet.__super__ = hxdom.VirtualElement;
 hxdom.EFieldSet.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.EFieldSet
@@ -1475,7 +1844,7 @@ hxdom.EFigureCaption = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(Element,"FIGCAPTION"));
 };
 $hxClasses["hxdom.EFigureCaption"] = hxdom.EFigureCaption;
-hxdom.EFigureCaption.__name__ = true;
+hxdom.EFigureCaption.__name__ = ["hxdom","EFigureCaption"];
 hxdom.EFigureCaption.__super__ = hxdom.VirtualElement;
 hxdom.EFigureCaption.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.EFigureCaption
@@ -1484,7 +1853,7 @@ hxdom.EFigure = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(Element,"FIGURE"));
 };
 $hxClasses["hxdom.EFigure"] = hxdom.EFigure;
-hxdom.EFigure.__name__ = true;
+hxdom.EFigure.__name__ = ["hxdom","EFigure"];
 hxdom.EFigure.__super__ = hxdom.VirtualElement;
 hxdom.EFigure.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.EFigure
@@ -1493,7 +1862,7 @@ hxdom.EFooter = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(Element,"FOOTER"));
 };
 $hxClasses["hxdom.EFooter"] = hxdom.EFooter;
-hxdom.EFooter.__name__ = true;
+hxdom.EFooter.__name__ = ["hxdom","EFooter"];
 hxdom.EFooter.__super__ = hxdom.VirtualElement;
 hxdom.EFooter.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.EFooter
@@ -1502,7 +1871,7 @@ hxdom.EForm = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(HTMLFormElement,"FORM"));
 };
 $hxClasses["hxdom.EForm"] = hxdom.EForm;
-hxdom.EForm.__name__ = true;
+hxdom.EForm.__name__ = ["hxdom","EForm"];
 hxdom.EForm.__super__ = hxdom.VirtualElement;
 hxdom.EForm.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.EForm
@@ -1511,7 +1880,7 @@ hxdom.EHeader1 = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(Element,"H1"));
 };
 $hxClasses["hxdom.EHeader1"] = hxdom.EHeader1;
-hxdom.EHeader1.__name__ = true;
+hxdom.EHeader1.__name__ = ["hxdom","EHeader1"];
 hxdom.EHeader1.__super__ = hxdom.VirtualElement;
 hxdom.EHeader1.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.EHeader1
@@ -1520,7 +1889,7 @@ hxdom.EHeader2 = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(Element,"H2"));
 };
 $hxClasses["hxdom.EHeader2"] = hxdom.EHeader2;
-hxdom.EHeader2.__name__ = true;
+hxdom.EHeader2.__name__ = ["hxdom","EHeader2"];
 hxdom.EHeader2.__super__ = hxdom.VirtualElement;
 hxdom.EHeader2.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.EHeader2
@@ -1529,7 +1898,7 @@ hxdom.EHeader3 = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(Element,"H3"));
 };
 $hxClasses["hxdom.EHeader3"] = hxdom.EHeader3;
-hxdom.EHeader3.__name__ = true;
+hxdom.EHeader3.__name__ = ["hxdom","EHeader3"];
 hxdom.EHeader3.__super__ = hxdom.VirtualElement;
 hxdom.EHeader3.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.EHeader3
@@ -1538,7 +1907,7 @@ hxdom.EHeader4 = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(Element,"H4"));
 };
 $hxClasses["hxdom.EHeader4"] = hxdom.EHeader4;
-hxdom.EHeader4.__name__ = true;
+hxdom.EHeader4.__name__ = ["hxdom","EHeader4"];
 hxdom.EHeader4.__super__ = hxdom.VirtualElement;
 hxdom.EHeader4.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.EHeader4
@@ -1547,7 +1916,7 @@ hxdom.EHeader5 = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(Element,"H5"));
 };
 $hxClasses["hxdom.EHeader5"] = hxdom.EHeader5;
-hxdom.EHeader5.__name__ = true;
+hxdom.EHeader5.__name__ = ["hxdom","EHeader5"];
 hxdom.EHeader5.__super__ = hxdom.VirtualElement;
 hxdom.EHeader5.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.EHeader5
@@ -1556,7 +1925,7 @@ hxdom.EHeader6 = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(Element,"H6"));
 };
 $hxClasses["hxdom.EHeader6"] = hxdom.EHeader6;
-hxdom.EHeader6.__name__ = true;
+hxdom.EHeader6.__name__ = ["hxdom","EHeader6"];
 hxdom.EHeader6.__super__ = hxdom.VirtualElement;
 hxdom.EHeader6.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.EHeader6
@@ -1565,7 +1934,7 @@ hxdom.EHead = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(HTMLHeadElement,"HEAD"));
 };
 $hxClasses["hxdom.EHead"] = hxdom.EHead;
-hxdom.EHead.__name__ = true;
+hxdom.EHead.__name__ = ["hxdom","EHead"];
 hxdom.EHead.__super__ = hxdom.VirtualElement;
 hxdom.EHead.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.EHead
@@ -1574,7 +1943,7 @@ hxdom.EHeader = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(Element,"HEADER"));
 };
 $hxClasses["hxdom.EHeader"] = hxdom.EHeader;
-hxdom.EHeader.__name__ = true;
+hxdom.EHeader.__name__ = ["hxdom","EHeader"];
 hxdom.EHeader.__super__ = hxdom.VirtualElement;
 hxdom.EHeader.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.EHeader
@@ -1583,7 +1952,7 @@ hxdom.EHorizontalRule = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(HTMLHRElement,"HR"));
 };
 $hxClasses["hxdom.EHorizontalRule"] = hxdom.EHorizontalRule;
-hxdom.EHorizontalRule.__name__ = true;
+hxdom.EHorizontalRule.__name__ = ["hxdom","EHorizontalRule"];
 hxdom.EHorizontalRule.__super__ = hxdom.VirtualElement;
 hxdom.EHorizontalRule.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.EHorizontalRule
@@ -1592,7 +1961,7 @@ hxdom.EHtml = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(HTMLHtmlElement,"HTML"));
 };
 $hxClasses["hxdom.EHtml"] = hxdom.EHtml;
-hxdom.EHtml.__name__ = true;
+hxdom.EHtml.__name__ = ["hxdom","EHtml"];
 hxdom.EHtml.__super__ = hxdom.VirtualElement;
 hxdom.EHtml.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.EHtml
@@ -1601,7 +1970,7 @@ hxdom.EItalics = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(Element,"I"));
 };
 $hxClasses["hxdom.EItalics"] = hxdom.EItalics;
-hxdom.EItalics.__name__ = true;
+hxdom.EItalics.__name__ = ["hxdom","EItalics"];
 hxdom.EItalics.__super__ = hxdom.VirtualElement;
 hxdom.EItalics.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.EItalics
@@ -1610,7 +1979,7 @@ hxdom.EIFrame = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(HTMLIFrameElement,"IFRAME"));
 };
 $hxClasses["hxdom.EIFrame"] = hxdom.EIFrame;
-hxdom.EIFrame.__name__ = true;
+hxdom.EIFrame.__name__ = ["hxdom","EIFrame"];
 hxdom.EIFrame.__super__ = hxdom.VirtualElement;
 hxdom.EIFrame.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.EIFrame
@@ -1619,7 +1988,7 @@ hxdom.EImage = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(HTMLImageElement,"IMG"));
 };
 $hxClasses["hxdom.EImage"] = hxdom.EImage;
-hxdom.EImage.__name__ = true;
+hxdom.EImage.__name__ = ["hxdom","EImage"];
 hxdom.EImage.__super__ = hxdom.VirtualElement;
 hxdom.EImage.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.EImage
@@ -1699,7 +2068,7 @@ hxdom.EInput = function(type) {
 	}
 };
 $hxClasses["hxdom.EInput"] = hxdom.EInput;
-hxdom.EInput.__name__ = true;
+hxdom.EInput.__name__ = ["hxdom","EInput"];
 hxdom.EInput.__super__ = hxdom.VirtualElement;
 hxdom.EInput.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.EInput
@@ -1708,7 +2077,7 @@ hxdom.EInserted = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(Element,"INS"));
 };
 $hxClasses["hxdom.EInserted"] = hxdom.EInserted;
-hxdom.EInserted.__name__ = true;
+hxdom.EInserted.__name__ = ["hxdom","EInserted"];
 hxdom.EInserted.__super__ = hxdom.VirtualElement;
 hxdom.EInserted.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.EInserted
@@ -1717,7 +2086,7 @@ hxdom.EKeyboard = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(Element,"KBD"));
 };
 $hxClasses["hxdom.EKeyboard"] = hxdom.EKeyboard;
-hxdom.EKeyboard.__name__ = true;
+hxdom.EKeyboard.__name__ = ["hxdom","EKeyboard"];
 hxdom.EKeyboard.__super__ = hxdom.VirtualElement;
 hxdom.EKeyboard.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.EKeyboard
@@ -1726,7 +2095,7 @@ hxdom.EKeygen = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(HTMLKeygenElement,"KEYGEN"));
 };
 $hxClasses["hxdom.EKeygen"] = hxdom.EKeygen;
-hxdom.EKeygen.__name__ = true;
+hxdom.EKeygen.__name__ = ["hxdom","EKeygen"];
 hxdom.EKeygen.__super__ = hxdom.VirtualElement;
 hxdom.EKeygen.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.EKeygen
@@ -1735,7 +2104,7 @@ hxdom.ELabel = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(HTMLLabelElement,"LABEL"));
 };
 $hxClasses["hxdom.ELabel"] = hxdom.ELabel;
-hxdom.ELabel.__name__ = true;
+hxdom.ELabel.__name__ = ["hxdom","ELabel"];
 hxdom.ELabel.__super__ = hxdom.VirtualElement;
 hxdom.ELabel.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.ELabel
@@ -1744,7 +2113,7 @@ hxdom.ELegend = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(HTMLLegendElement,"LEGEND"));
 };
 $hxClasses["hxdom.ELegend"] = hxdom.ELegend;
-hxdom.ELegend.__name__ = true;
+hxdom.ELegend.__name__ = ["hxdom","ELegend"];
 hxdom.ELegend.__super__ = hxdom.VirtualElement;
 hxdom.ELegend.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.ELegend
@@ -1753,7 +2122,7 @@ hxdom.EListItem = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(HTMLLIElement,"LI"));
 };
 $hxClasses["hxdom.EListItem"] = hxdom.EListItem;
-hxdom.EListItem.__name__ = true;
+hxdom.EListItem.__name__ = ["hxdom","EListItem"];
 hxdom.EListItem.__super__ = hxdom.VirtualElement;
 hxdom.EListItem.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.EListItem
@@ -1762,7 +2131,7 @@ hxdom.ELink = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(HTMLLinkElement,"LINK"));
 };
 $hxClasses["hxdom.ELink"] = hxdom.ELink;
-hxdom.ELink.__name__ = true;
+hxdom.ELink.__name__ = ["hxdom","ELink"];
 hxdom.ELink.__super__ = hxdom.VirtualElement;
 hxdom.ELink.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.ELink
@@ -1771,7 +2140,7 @@ hxdom.EMain = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(Element,"MAIN"));
 };
 $hxClasses["hxdom.EMain"] = hxdom.EMain;
-hxdom.EMain.__name__ = true;
+hxdom.EMain.__name__ = ["hxdom","EMain"];
 hxdom.EMain.__super__ = hxdom.VirtualElement;
 hxdom.EMain.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.EMain
@@ -1780,7 +2149,7 @@ hxdom.EMap = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(HTMLMapElement,"MAP"));
 };
 $hxClasses["hxdom.EMap"] = hxdom.EMap;
-hxdom.EMap.__name__ = true;
+hxdom.EMap.__name__ = ["hxdom","EMap"];
 hxdom.EMap.__super__ = hxdom.VirtualElement;
 hxdom.EMap.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.EMap
@@ -1789,7 +2158,7 @@ hxdom.EMark = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(Element,"MARK"));
 };
 $hxClasses["hxdom.EMark"] = hxdom.EMark;
-hxdom.EMark.__name__ = true;
+hxdom.EMark.__name__ = ["hxdom","EMark"];
 hxdom.EMark.__super__ = hxdom.VirtualElement;
 hxdom.EMark.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.EMark
@@ -1798,7 +2167,7 @@ hxdom.EMenu = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(HTMLMenuElement,"MENU"));
 };
 $hxClasses["hxdom.EMenu"] = hxdom.EMenu;
-hxdom.EMenu.__name__ = true;
+hxdom.EMenu.__name__ = ["hxdom","EMenu"];
 hxdom.EMenu.__super__ = hxdom.VirtualElement;
 hxdom.EMenu.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.EMenu
@@ -1807,7 +2176,7 @@ hxdom.EMenuItem = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(Element,"MENUITEM"));
 };
 $hxClasses["hxdom.EMenuItem"] = hxdom.EMenuItem;
-hxdom.EMenuItem.__name__ = true;
+hxdom.EMenuItem.__name__ = ["hxdom","EMenuItem"];
 hxdom.EMenuItem.__super__ = hxdom.VirtualElement;
 hxdom.EMenuItem.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.EMenuItem
@@ -1816,7 +2185,7 @@ hxdom.EMeta = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(HTMLMetaElement,"META"));
 };
 $hxClasses["hxdom.EMeta"] = hxdom.EMeta;
-hxdom.EMeta.__name__ = true;
+hxdom.EMeta.__name__ = ["hxdom","EMeta"];
 hxdom.EMeta.__super__ = hxdom.VirtualElement;
 hxdom.EMeta.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.EMeta
@@ -1825,7 +2194,7 @@ hxdom.EMeter = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(HTMLMeterElement,"METER"));
 };
 $hxClasses["hxdom.EMeter"] = hxdom.EMeter;
-hxdom.EMeter.__name__ = true;
+hxdom.EMeter.__name__ = ["hxdom","EMeter"];
 hxdom.EMeter.__super__ = hxdom.VirtualElement;
 hxdom.EMeter.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.EMeter
@@ -1834,7 +2203,7 @@ hxdom.ENav = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(Element,"NAV"));
 };
 $hxClasses["hxdom.ENav"] = hxdom.ENav;
-hxdom.ENav.__name__ = true;
+hxdom.ENav.__name__ = ["hxdom","ENav"];
 hxdom.ENav.__super__ = hxdom.VirtualElement;
 hxdom.ENav.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.ENav
@@ -1843,7 +2212,7 @@ hxdom.ENoScript = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(Element,"NOSCRIPT"));
 };
 $hxClasses["hxdom.ENoScript"] = hxdom.ENoScript;
-hxdom.ENoScript.__name__ = true;
+hxdom.ENoScript.__name__ = ["hxdom","ENoScript"];
 hxdom.ENoScript.__super__ = hxdom.VirtualElement;
 hxdom.ENoScript.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.ENoScript
@@ -1852,7 +2221,7 @@ hxdom.EObject = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(HTMLObjectElement,"OBJECT"));
 };
 $hxClasses["hxdom.EObject"] = hxdom.EObject;
-hxdom.EObject.__name__ = true;
+hxdom.EObject.__name__ = ["hxdom","EObject"];
 hxdom.EObject.__super__ = hxdom.VirtualElement;
 hxdom.EObject.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.EObject
@@ -1861,7 +2230,7 @@ hxdom.EOrderedList = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(HTMLOListElement,"OL"));
 };
 $hxClasses["hxdom.EOrderedList"] = hxdom.EOrderedList;
-hxdom.EOrderedList.__name__ = true;
+hxdom.EOrderedList.__name__ = ["hxdom","EOrderedList"];
 hxdom.EOrderedList.__super__ = hxdom.VirtualElement;
 hxdom.EOrderedList.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.EOrderedList
@@ -1870,7 +2239,7 @@ hxdom.EOptionGroup = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(HTMLOptGroupElement,"OPTGROUP"));
 };
 $hxClasses["hxdom.EOptionGroup"] = hxdom.EOptionGroup;
-hxdom.EOptionGroup.__name__ = true;
+hxdom.EOptionGroup.__name__ = ["hxdom","EOptionGroup"];
 hxdom.EOptionGroup.__super__ = hxdom.VirtualElement;
 hxdom.EOptionGroup.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.EOptionGroup
@@ -1879,7 +2248,7 @@ hxdom.EOption = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(HTMLOptionElement,"OPTION"));
 };
 $hxClasses["hxdom.EOption"] = hxdom.EOption;
-hxdom.EOption.__name__ = true;
+hxdom.EOption.__name__ = ["hxdom","EOption"];
 hxdom.EOption.__super__ = hxdom.VirtualElement;
 hxdom.EOption.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.EOption
@@ -1888,7 +2257,7 @@ hxdom.EOutput = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(HTMLOutputElement,"OUTPUT"));
 };
 $hxClasses["hxdom.EOutput"] = hxdom.EOutput;
-hxdom.EOutput.__name__ = true;
+hxdom.EOutput.__name__ = ["hxdom","EOutput"];
 hxdom.EOutput.__super__ = hxdom.VirtualElement;
 hxdom.EOutput.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.EOutput
@@ -1897,7 +2266,7 @@ hxdom.EParagraph = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(HTMLParagraphElement,"P"));
 };
 $hxClasses["hxdom.EParagraph"] = hxdom.EParagraph;
-hxdom.EParagraph.__name__ = true;
+hxdom.EParagraph.__name__ = ["hxdom","EParagraph"];
 hxdom.EParagraph.__super__ = hxdom.VirtualElement;
 hxdom.EParagraph.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.EParagraph
@@ -1906,7 +2275,7 @@ hxdom.EParam = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(HTMLParamElement,"PARAM"));
 };
 $hxClasses["hxdom.EParam"] = hxdom.EParam;
-hxdom.EParam.__name__ = true;
+hxdom.EParam.__name__ = ["hxdom","EParam"];
 hxdom.EParam.__super__ = hxdom.VirtualElement;
 hxdom.EParam.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.EParam
@@ -1915,7 +2284,7 @@ hxdom.EPre = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(HTMLPreElement,"PRE"));
 };
 $hxClasses["hxdom.EPre"] = hxdom.EPre;
-hxdom.EPre.__name__ = true;
+hxdom.EPre.__name__ = ["hxdom","EPre"];
 hxdom.EPre.__super__ = hxdom.VirtualElement;
 hxdom.EPre.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.EPre
@@ -1924,7 +2293,7 @@ hxdom.EProgress = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(HTMLProgressElement,"PROGRESS"));
 };
 $hxClasses["hxdom.EProgress"] = hxdom.EProgress;
-hxdom.EProgress.__name__ = true;
+hxdom.EProgress.__name__ = ["hxdom","EProgress"];
 hxdom.EProgress.__super__ = hxdom.VirtualElement;
 hxdom.EProgress.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.EProgress
@@ -1933,7 +2302,7 @@ hxdom.EQuote = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(HTMLQuoteElement,"Q"));
 };
 $hxClasses["hxdom.EQuote"] = hxdom.EQuote;
-hxdom.EQuote.__name__ = true;
+hxdom.EQuote.__name__ = ["hxdom","EQuote"];
 hxdom.EQuote.__super__ = hxdom.VirtualElement;
 hxdom.EQuote.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.EQuote
@@ -1942,7 +2311,7 @@ hxdom.ERubyParen = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(Element,"RP"));
 };
 $hxClasses["hxdom.ERubyParen"] = hxdom.ERubyParen;
-hxdom.ERubyParen.__name__ = true;
+hxdom.ERubyParen.__name__ = ["hxdom","ERubyParen"];
 hxdom.ERubyParen.__super__ = hxdom.VirtualElement;
 hxdom.ERubyParen.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.ERubyParen
@@ -1951,7 +2320,7 @@ hxdom.ERubyPrononcuation = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(Element,"RT"));
 };
 $hxClasses["hxdom.ERubyPrononcuation"] = hxdom.ERubyPrononcuation;
-hxdom.ERubyPrononcuation.__name__ = true;
+hxdom.ERubyPrononcuation.__name__ = ["hxdom","ERubyPrononcuation"];
 hxdom.ERubyPrononcuation.__super__ = hxdom.VirtualElement;
 hxdom.ERubyPrononcuation.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.ERubyPrononcuation
@@ -1960,7 +2329,7 @@ hxdom.ERuby = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(Element,"RUBY"));
 };
 $hxClasses["hxdom.ERuby"] = hxdom.ERuby;
-hxdom.ERuby.__name__ = true;
+hxdom.ERuby.__name__ = ["hxdom","ERuby"];
 hxdom.ERuby.__super__ = hxdom.VirtualElement;
 hxdom.ERuby.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.ERuby
@@ -1969,7 +2338,7 @@ hxdom.EStrike = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(Element,"S"));
 };
 $hxClasses["hxdom.EStrike"] = hxdom.EStrike;
-hxdom.EStrike.__name__ = true;
+hxdom.EStrike.__name__ = ["hxdom","EStrike"];
 hxdom.EStrike.__super__ = hxdom.VirtualElement;
 hxdom.EStrike.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.EStrike
@@ -1978,7 +2347,7 @@ hxdom.ESample = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(Element,"SAMP"));
 };
 $hxClasses["hxdom.ESample"] = hxdom.ESample;
-hxdom.ESample.__name__ = true;
+hxdom.ESample.__name__ = ["hxdom","ESample"];
 hxdom.ESample.__super__ = hxdom.VirtualElement;
 hxdom.ESample.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.ESample
@@ -1987,7 +2356,7 @@ hxdom.EScript = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(HTMLScriptElement,"SCRIPT"));
 };
 $hxClasses["hxdom.EScript"] = hxdom.EScript;
-hxdom.EScript.__name__ = true;
+hxdom.EScript.__name__ = ["hxdom","EScript"];
 hxdom.EScript.__super__ = hxdom.VirtualElement;
 hxdom.EScript.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.EScript
@@ -1996,7 +2365,7 @@ hxdom.ESection = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(Element,"SECTION"));
 };
 $hxClasses["hxdom.ESection"] = hxdom.ESection;
-hxdom.ESection.__name__ = true;
+hxdom.ESection.__name__ = ["hxdom","ESection"];
 hxdom.ESection.__super__ = hxdom.VirtualElement;
 hxdom.ESection.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.ESection
@@ -2005,7 +2374,7 @@ hxdom.ESelect = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(HTMLSelectElement,"SELECT"));
 };
 $hxClasses["hxdom.ESelect"] = hxdom.ESelect;
-hxdom.ESelect.__name__ = true;
+hxdom.ESelect.__name__ = ["hxdom","ESelect"];
 hxdom.ESelect.__super__ = hxdom.VirtualElement;
 hxdom.ESelect.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.ESelect
@@ -2014,7 +2383,7 @@ hxdom.ESmall = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(Element,"SMALL"));
 };
 $hxClasses["hxdom.ESmall"] = hxdom.ESmall;
-hxdom.ESmall.__name__ = true;
+hxdom.ESmall.__name__ = ["hxdom","ESmall"];
 hxdom.ESmall.__super__ = hxdom.VirtualElement;
 hxdom.ESmall.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.ESmall
@@ -2023,7 +2392,7 @@ hxdom.ESource = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(HTMLSourceElement,"SOURCE"));
 };
 $hxClasses["hxdom.ESource"] = hxdom.ESource;
-hxdom.ESource.__name__ = true;
+hxdom.ESource.__name__ = ["hxdom","ESource"];
 hxdom.ESource.__super__ = hxdom.VirtualElement;
 hxdom.ESource.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.ESource
@@ -2032,7 +2401,7 @@ hxdom.ESpan = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(HTMLSpanElement,"SPAN"));
 };
 $hxClasses["hxdom.ESpan"] = hxdom.ESpan;
-hxdom.ESpan.__name__ = true;
+hxdom.ESpan.__name__ = ["hxdom","ESpan"];
 hxdom.ESpan.__super__ = hxdom.VirtualElement;
 hxdom.ESpan.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.ESpan
@@ -2041,7 +2410,7 @@ hxdom.EStrong = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(Element,"STRONG"));
 };
 $hxClasses["hxdom.EStrong"] = hxdom.EStrong;
-hxdom.EStrong.__name__ = true;
+hxdom.EStrong.__name__ = ["hxdom","EStrong"];
 hxdom.EStrong.__super__ = hxdom.VirtualElement;
 hxdom.EStrong.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.EStrong
@@ -2050,7 +2419,7 @@ hxdom.EStyle = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(HTMLStyleElement,"STYLE"));
 };
 $hxClasses["hxdom.EStyle"] = hxdom.EStyle;
-hxdom.EStyle.__name__ = true;
+hxdom.EStyle.__name__ = ["hxdom","EStyle"];
 hxdom.EStyle.__super__ = hxdom.VirtualElement;
 hxdom.EStyle.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.EStyle
@@ -2059,7 +2428,7 @@ hxdom.ESub = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(Element,"SUB"));
 };
 $hxClasses["hxdom.ESub"] = hxdom.ESub;
-hxdom.ESub.__name__ = true;
+hxdom.ESub.__name__ = ["hxdom","ESub"];
 hxdom.ESub.__super__ = hxdom.VirtualElement;
 hxdom.ESub.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.ESub
@@ -2068,7 +2437,7 @@ hxdom.ESummary = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(Element,"SUMMARY"));
 };
 $hxClasses["hxdom.ESummary"] = hxdom.ESummary;
-hxdom.ESummary.__name__ = true;
+hxdom.ESummary.__name__ = ["hxdom","ESummary"];
 hxdom.ESummary.__super__ = hxdom.VirtualElement;
 hxdom.ESummary.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.ESummary
@@ -2077,7 +2446,7 @@ hxdom.ESup = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(Element,"SUP"));
 };
 $hxClasses["hxdom.ESup"] = hxdom.ESup;
-hxdom.ESup.__name__ = true;
+hxdom.ESup.__name__ = ["hxdom","ESup"];
 hxdom.ESup.__super__ = hxdom.VirtualElement;
 hxdom.ESup.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.ESup
@@ -2086,7 +2455,7 @@ hxdom.ETable = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(HTMLTableElement,"TABLE"));
 };
 $hxClasses["hxdom.ETable"] = hxdom.ETable;
-hxdom.ETable.__name__ = true;
+hxdom.ETable.__name__ = ["hxdom","ETable"];
 hxdom.ETable.__super__ = hxdom.VirtualElement;
 hxdom.ETable.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.ETable
@@ -2095,7 +2464,7 @@ hxdom.ETableBody = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(HTMLTableSectionElement,"TBODY"));
 };
 $hxClasses["hxdom.ETableBody"] = hxdom.ETableBody;
-hxdom.ETableBody.__name__ = true;
+hxdom.ETableBody.__name__ = ["hxdom","ETableBody"];
 hxdom.ETableBody.__super__ = hxdom.VirtualElement;
 hxdom.ETableBody.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.ETableBody
@@ -2104,7 +2473,7 @@ hxdom.ETableCell = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(HTMLTableCellElement,"TD"));
 };
 $hxClasses["hxdom.ETableCell"] = hxdom.ETableCell;
-hxdom.ETableCell.__name__ = true;
+hxdom.ETableCell.__name__ = ["hxdom","ETableCell"];
 hxdom.ETableCell.__super__ = hxdom.VirtualElement;
 hxdom.ETableCell.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.ETableCell
@@ -2113,7 +2482,7 @@ hxdom.ETextArea = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(HTMLTextAreaElement,"TEXTAREA"));
 };
 $hxClasses["hxdom.ETextArea"] = hxdom.ETextArea;
-hxdom.ETextArea.__name__ = true;
+hxdom.ETextArea.__name__ = ["hxdom","ETextArea"];
 hxdom.ETextArea.__super__ = hxdom.VirtualElement;
 hxdom.ETextArea.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.ETextArea
@@ -2122,7 +2491,7 @@ hxdom.ETableFooter = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(HTMLTableSectionElement,"TFOOT"));
 };
 $hxClasses["hxdom.ETableFooter"] = hxdom.ETableFooter;
-hxdom.ETableFooter.__name__ = true;
+hxdom.ETableFooter.__name__ = ["hxdom","ETableFooter"];
 hxdom.ETableFooter.__super__ = hxdom.VirtualElement;
 hxdom.ETableFooter.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.ETableFooter
@@ -2131,7 +2500,7 @@ hxdom.ETableHeaderCell = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(HTMLTableCellElement,"TH"));
 };
 $hxClasses["hxdom.ETableHeaderCell"] = hxdom.ETableHeaderCell;
-hxdom.ETableHeaderCell.__name__ = true;
+hxdom.ETableHeaderCell.__name__ = ["hxdom","ETableHeaderCell"];
 hxdom.ETableHeaderCell.__super__ = hxdom.VirtualElement;
 hxdom.ETableHeaderCell.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.ETableHeaderCell
@@ -2140,7 +2509,7 @@ hxdom.ETableHeader = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(HTMLTableSectionElement,"THEAD"));
 };
 $hxClasses["hxdom.ETableHeader"] = hxdom.ETableHeader;
-hxdom.ETableHeader.__name__ = true;
+hxdom.ETableHeader.__name__ = ["hxdom","ETableHeader"];
 hxdom.ETableHeader.__super__ = hxdom.VirtualElement;
 hxdom.ETableHeader.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.ETableHeader
@@ -2149,7 +2518,7 @@ hxdom.ETime = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(Element,"TIME"));
 };
 $hxClasses["hxdom.ETime"] = hxdom.ETime;
-hxdom.ETime.__name__ = true;
+hxdom.ETime.__name__ = ["hxdom","ETime"];
 hxdom.ETime.__super__ = hxdom.VirtualElement;
 hxdom.ETime.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.ETime
@@ -2158,7 +2527,7 @@ hxdom.ETitle = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(HTMLTitleElement,"TITLE"));
 };
 $hxClasses["hxdom.ETitle"] = hxdom.ETitle;
-hxdom.ETitle.__name__ = true;
+hxdom.ETitle.__name__ = ["hxdom","ETitle"];
 hxdom.ETitle.__super__ = hxdom.VirtualElement;
 hxdom.ETitle.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.ETitle
@@ -2167,7 +2536,7 @@ hxdom.ETableRow = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(HTMLTableRowElement,"TR"));
 };
 $hxClasses["hxdom.ETableRow"] = hxdom.ETableRow;
-hxdom.ETableRow.__name__ = true;
+hxdom.ETableRow.__name__ = ["hxdom","ETableRow"];
 hxdom.ETableRow.__super__ = hxdom.VirtualElement;
 hxdom.ETableRow.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.ETableRow
@@ -2176,7 +2545,7 @@ hxdom.ETrack = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(HTMLTrackElement,"TRACK"));
 };
 $hxClasses["hxdom.ETrack"] = hxdom.ETrack;
-hxdom.ETrack.__name__ = true;
+hxdom.ETrack.__name__ = ["hxdom","ETrack"];
 hxdom.ETrack.__super__ = hxdom.VirtualElement;
 hxdom.ETrack.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.ETrack
@@ -2185,7 +2554,7 @@ hxdom.EUnderline = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(Element,"U"));
 };
 $hxClasses["hxdom.EUnderline"] = hxdom.EUnderline;
-hxdom.EUnderline.__name__ = true;
+hxdom.EUnderline.__name__ = ["hxdom","EUnderline"];
 hxdom.EUnderline.__super__ = hxdom.VirtualElement;
 hxdom.EUnderline.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.EUnderline
@@ -2194,7 +2563,7 @@ hxdom.EUnorderedList = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(HTMLUListElement,"UL"));
 };
 $hxClasses["hxdom.EUnorderedList"] = hxdom.EUnorderedList;
-hxdom.EUnorderedList.__name__ = true;
+hxdom.EUnorderedList.__name__ = ["hxdom","EUnorderedList"];
 hxdom.EUnorderedList.__super__ = hxdom.VirtualElement;
 hxdom.EUnorderedList.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.EUnorderedList
@@ -2203,7 +2572,7 @@ hxdom.EVar = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(Element,"VAR"));
 };
 $hxClasses["hxdom.EVar"] = hxdom.EVar;
-hxdom.EVar.__name__ = true;
+hxdom.EVar.__name__ = ["hxdom","EVar"];
 hxdom.EVar.__super__ = hxdom.VirtualElement;
 hxdom.EVar.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.EVar
@@ -2212,7 +2581,7 @@ hxdom.EVideo = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(HTMLVideoElement,"VIDEO"));
 };
 $hxClasses["hxdom.EVideo"] = hxdom.EVideo;
-hxdom.EVideo.__name__ = true;
+hxdom.EVideo.__name__ = ["hxdom","EVideo"];
 hxdom.EVideo.__super__ = hxdom.VirtualElement;
 hxdom.EVideo.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.EVideo
@@ -2221,7 +2590,7 @@ hxdom.EWordBreak = function() {
 	hxdom.VirtualElement.call(this,hxdom.VirtualNode.buildElement(Element,"WBR"));
 };
 $hxClasses["hxdom.EWordBreak"] = hxdom.EWordBreak;
-hxdom.EWordBreak.__name__ = true;
+hxdom.EWordBreak.__name__ = ["hxdom","EWordBreak"];
 hxdom.EWordBreak.__super__ = hxdom.VirtualElement;
 hxdom.EWordBreak.prototype = $extend(hxdom.VirtualElement.prototype,{
 	__class__: hxdom.EWordBreak
@@ -2230,7 +2599,7 @@ hxdom.Text = function(txt) {
 	hxdom.VirtualNode.call(this,hxdom.VirtualNode.buildText(txt));
 };
 $hxClasses["hxdom.Text"] = hxdom.Text;
-hxdom.Text.__name__ = true;
+hxdom.Text.__name__ = ["hxdom","Text"];
 hxdom.Text.__super__ = hxdom.VirtualNode;
 hxdom.Text.prototype = $extend(hxdom.VirtualNode.prototype,{
 	__class__: hxdom.Text
@@ -2240,20 +2609,20 @@ hxdom.HtmlSnippet = function(html) {
 	this.node.innerHTML = html;
 };
 $hxClasses["hxdom.HtmlSnippet"] = hxdom.HtmlSnippet;
-hxdom.HtmlSnippet.__name__ = true;
+hxdom.HtmlSnippet.__name__ = ["hxdom","HtmlSnippet"];
 hxdom.HtmlSnippet.__super__ = hxdom.ESpan;
 hxdom.HtmlSnippet.prototype = $extend(hxdom.ESpan.prototype,{
 	__class__: hxdom.HtmlSnippet
 });
 hxdom.IEventDispatcher = function() { };
 $hxClasses["hxdom.IEventDispatcher"] = hxdom.IEventDispatcher;
-hxdom.IEventDispatcher.__name__ = true;
+hxdom.IEventDispatcher.__name__ = ["hxdom","IEventDispatcher"];
 hxdom.IEventDispatcher.prototype = {
 	__class__: hxdom.IEventDispatcher
 };
 hxdom.EventDispatcher = function() { };
 $hxClasses["hxdom.EventDispatcher"] = hxdom.EventDispatcher;
-hxdom.EventDispatcher.__name__ = true;
+hxdom.EventDispatcher.__name__ = ["hxdom","EventDispatcher"];
 hxdom.EventDispatcher.__interfaces__ = [hxdom.IEventDispatcher];
 hxdom.EventDispatcher.prototype = {
 	__addEventListener: function(type,handler,useCapture) {
@@ -2338,13 +2707,163 @@ hxdom.EventDispatcher.prototype = {
 };
 hxdom.EventDispatcherMacro = function() { };
 $hxClasses["hxdom.EventDispatcherMacro"] = hxdom.EventDispatcherMacro;
-hxdom.EventDispatcherMacro.__name__ = true;
+hxdom.EventDispatcherMacro.__name__ = ["hxdom","EventDispatcherMacro"];
+hxdom.HtmlSerializer = function() {
+	haxe.Serializer.call(this);
+	this.indent = 0;
+	this.useCache = true;
+	this.useEnumIndex = hxdom.HtmlSerializer.USE_ENUM_INDEX;
+	this.attr = false;
+};
+$hxClasses["hxdom.HtmlSerializer"] = hxdom.HtmlSerializer;
+hxdom.HtmlSerializer.__name__ = ["hxdom","HtmlSerializer"];
+hxdom.HtmlSerializer.run = function(html,addDoctype) {
+	if(addDoctype == null) addDoctype = false;
+	var s = new hxdom.HtmlSerializer();
+	if(addDoctype) s.buf.b += "<!DOCTYPE html>";
+	s.serialize(html);
+	return s.toString();
+};
+hxdom.HtmlSerializer.__super__ = haxe.Serializer;
+hxdom.HtmlSerializer.prototype = $extend(haxe.Serializer.prototype,{
+	text: function(t) {
+		if(hxdom.HtmlSerializer.prettyPrint) this.buf.add(StringTools.lpad("",hxdom.HtmlSerializer.iStr,this.indent) + hxdom.HtmlSerializer.iStr + t.node.data + hxdom.HtmlSerializer.eol); else this.buf.b += Std.string(t.node.data);
+	}
+	,element: function(e) {
+		this.openTag(e);
+		this.indent++;
+		this.children(e);
+		this.indent--;
+		this.closeTag(e);
+	}
+	,openTag: function(e) {
+		if(hxdom.HtmlSerializer.prettyPrint) this.buf.add(StringTools.lpad("",hxdom.HtmlSerializer.iStr,this.indent) + "<" + e.node.tagName.toLowerCase()); else this.buf.add("<" + e.node.tagName.toLowerCase());
+		this.attrs(e);
+		this.buf.add(hxdom.HtmlSerializer.prettyPrint && e.node.hasChildNodes()?">" + hxdom.HtmlSerializer.eol:">");
+	}
+	,closeTag: function(e) {
+		if(hxdom.HtmlSerializer.prettyPrint) this.buf.add((e.node.hasChildNodes()?StringTools.lpad("",hxdom.HtmlSerializer.iStr,this.indent):"") + "</" + e.node.tagName.toLowerCase() + ">" + hxdom.HtmlSerializer.eol); else this.buf.add("</" + e.node.tagName.toLowerCase() + ">");
+	}
+	,elemIds: function(e) {
+		this.buf.add(" data-hxid='" + Std.string(Reflect.field(e,"id")));
+		if(!Object.prototype.hasOwnProperty.call(e.node,"__htmlSnippet")) {
+			var _g = 0;
+			var _g1 = e.node.childNodes;
+			while(_g < _g1.length) {
+				var i = _g1[_g];
+				++_g;
+				if(i.nodeType == 3) {
+					var text = Reflect.field(i,"__vdom");
+					if(hxdom.HtmlSerializer.prettyPrint) this.buf.add(" " + Std.string(Reflect.field(text,"id")) + "-" + (StringTools.lpad("",hxdom.HtmlSerializer.iStr,this.indent) + hxdom.HtmlSerializer.iStr + (i.data + hxdom.HtmlSerializer.eol)).length); else this.buf.add(" " + Std.string(Reflect.field(text,"id")) + "-" + i.data.length);
+				}
+			}
+		}
+		this.buf.b += "'";
+	}
+	,attrs: function(e) {
+		this.attr = true;
+		this.elemIds(e);
+		var _g = 0;
+		var _g1 = Reflect.fields(e.node.dataset);
+		while(_g < _g1.length) {
+			var i = _g1[_g];
+			++_g;
+			this.buf.add(" data-" + hxdom.DomTools.camelCaseToDash(i) + "='" + StringTools.htmlEscape(Std.string(Reflect.field(e.node.dataset,i)),true) + "'");
+		}
+		var style = null;
+		var _g2 = 0;
+		var _g11 = Reflect.fields(e.node.style);
+		while(_g2 < _g11.length) {
+			var i1 = _g11[_g2];
+			++_g2;
+			if(style == null) style = " style='";
+			style += StringTools.htmlEscape(hxdom.DomTools.camelCaseToDash(i1) + ":" + Std.string(Reflect.field(e.node.style,i1)),true) + ";";
+		}
+		if(style != null) this.buf.b += Std.string(style + "'");
+		var _g3 = 0;
+		var _g12 = Reflect.fields(e.node);
+		while(_g3 < _g12.length) {
+			var i2 = _g12[_g3];
+			++_g3;
+			if(Object.prototype.hasOwnProperty.call(hxdom.HtmlSerializer.fieldsToIgnore,i2)) continue;
+			var attrName = i2;
+			if(attrName == "className") attrName = "class";
+			var val = Reflect.field(e.node,i2);
+			var _g21 = Type["typeof"](val);
+			switch(_g21[1]) {
+			case 3:
+				if(val) this.buf.add(" " + hxdom.DomTools.camelCaseToDash(attrName));
+				break;
+			default:
+				this.buf.add(" " + hxdom.DomTools.camelCaseToDash(attrName) + "='" + StringTools.htmlEscape(val == null?"null":"" + val,true) + "'");
+			}
+		}
+		var events = Reflect.field(e.node,"__listeners");
+		if(events != null) {
+			this.buf.b += " data-hxevents='";
+			this.serialize(events);
+			this.buf.b += "'";
+		}
+		var sortedFields = Reflect.fields(e);
+		sortedFields.sort(function(a,b) {
+			if(a < b) return -1; else return 1;
+		});
+		this.buf.add(" data-hxclass='" + Type.getClassName(Type.getClass(e)) + "'");
+		var _g4 = 0;
+		while(_g4 < sortedFields.length) {
+			var i3 = sortedFields[_g4];
+			++_g4;
+			if(i3 != "node" && i3 != "id") {
+				this.buf.add(" data-hxd" + hxdom.DomTools.camelCaseToDash(i3) + "='");
+				this.serialize(Reflect.field(e,i3));
+				this.buf.b += "'";
+			}
+		}
+		this.attr = false;
+	}
+	,children: function(e) {
+		var _g = 0;
+		var _g1 = e.node.childNodes;
+		while(_g < _g1.length) {
+			var i = _g1[_g];
+			++_g;
+			this.serialize(Reflect.field(i,"__vdom"));
+		}
+	}
+	,serialize: function(v) {
+		if(js.Boot.__instanceof(v,hxdom.VirtualNode)) {
+			var vn = v;
+			if(this.attr) this.buf.add("D" + Std.string(v.id)); else {
+				var _g = vn.node.nodeType;
+				switch(_g) {
+				case 1:
+					this.element(vn);
+					break;
+				case 3:
+					this.text(vn);
+					break;
+				}
+			}
+		} else if(Type["typeof"](v) == ValueType.TObject) {
+			var name = null;
+			try {
+				name = Type.getClassName(v);
+			} catch( e ) {
+			}
+			if(name != null) {
+				this.buf.b += "O";
+				this.serializeString(name);
+			} else haxe.Serializer.prototype.serialize.call(this,v);
+		} else haxe.Serializer.prototype.serialize.call(this,v);
+	}
+	,__class__: hxdom.HtmlSerializer
+});
 hxdom.SFunc = function(inst,func,origFunc) {
 	this.inst = inst;
 	this.func = func;
 };
 $hxClasses["hxdom.SFunc"] = hxdom.SFunc;
-hxdom.SFunc.__name__ = true;
+hxdom.SFunc.__name__ = ["hxdom","SFunc"];
 hxdom.SFunc.prototype = {
 	call: function(args) {
 		if(args == null) args = new Array();
@@ -2359,7 +2878,7 @@ hxdom.js.Boot = function() {
 	this.initFuncs = new List();
 };
 $hxClasses["hxdom.js.Boot"] = hxdom.js.Boot;
-hxdom.js.Boot.__name__ = true;
+hxdom.js.Boot.__name__ = ["hxdom","js","Boot"];
 hxdom.js.Boot.init = function() {
 	var html = window.document.childNodes[1];
 	var boot = new hxdom.js.Boot();
@@ -2518,14 +3037,14 @@ hxdom.js.Boot.prototype = $extend(haxe.Unserializer.prototype,{
 });
 hxdom.js.ClientOnly = function() { };
 $hxClasses["hxdom.js.ClientOnly"] = hxdom.js.ClientOnly;
-hxdom.js.ClientOnly.__name__ = true;
+hxdom.js.ClientOnly.__name__ = ["hxdom","js","ClientOnly"];
 hxdom.js.ClientOnlyMacros = function() { };
 $hxClasses["hxdom.js.ClientOnlyMacros"] = hxdom.js.ClientOnlyMacros;
-hxdom.js.ClientOnlyMacros.__name__ = true;
+hxdom.js.ClientOnlyMacros.__name__ = ["hxdom","js","ClientOnlyMacros"];
 var js = {};
 js.Boot = function() { };
 $hxClasses["js.Boot"] = js.Boot;
-js.Boot.__name__ = true;
+js.Boot.__name__ = ["js","Boot"];
 js.Boot.getClass = function(o) {
 	if((o instanceof Array) && o.__enum__ == null) return Array; else return o.__class__;
 };
@@ -2638,6 +3157,12 @@ js.Boot.__instanceof = function(o,cl) {
 		return o.__enum__ == cl;
 	}
 };
+js.Lib = function() { };
+$hxClasses["js.Lib"] = js.Lib;
+js.Lib.__name__ = ["js","Lib"];
+js.Lib.alert = function(v) {
+	alert(js.Boot.__string_rec(v,""));
+};
 function $iterator(o) { if( o instanceof Array ) return function() { return HxOverrides.iter(o); }; return typeof(o.iterator) == 'function' ? $bind(o,o.iterator) : o.iterator; }
 var $_, $fid = 0;
 function $bind(o,m) { if( m == null ) return null; if( m.__id__ == null ) m.__id__ = $fid++; var f; if( o.hx__closures__ == null ) o.hx__closures__ = {}; else f = o.hx__closures__[m.__id__]; if( f == null ) { f = function(){ return f.method.apply(f.scope, arguments); }; f.scope = o; f.method = m; o.hx__closures__[m.__id__] = f; } return f; }
@@ -2652,9 +3177,9 @@ Math.isNaN = function(i1) {
 	return isNaN(i1);
 };
 String.prototype.__class__ = $hxClasses.String = String;
-String.__name__ = true;
+String.__name__ = ["String"];
 $hxClasses.Array = Array;
-Array.__name__ = true;
+Array.__name__ = ["Array"];
 Date.prototype.__class__ = $hxClasses.Date = Date;
 Date.__name__ = ["Date"];
 var Int = $hxClasses.Int = { __name__ : ["Int"]};
@@ -2667,9 +3192,17 @@ var Class = $hxClasses.Class = { __name__ : ["Class"]};
 var Enum = { };
 var q = window.jQuery;
 js.JQuery = q;
+haxe.Serializer.USE_CACHE = false;
+haxe.Serializer.USE_ENUM_INDEX = false;
+haxe.Serializer.BASE64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789%:";
 haxe.Unserializer.DEFAULT_RESOLVER = Type;
 haxe.Unserializer.BASE64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789%:";
 haxe.ds.ObjectMap.count = 0;
 hxdom.VirtualNode.ID = 0;
+hxdom.HtmlSerializer.USE_ENUM_INDEX = false;
+hxdom.HtmlSerializer.fieldsToIgnore = { nodeType : null, tagName : null, childNodes : null, parentNode : null, nextSibling : null, previousSibling : null, firstChild : null, lastChild : null, dataset : null, style : null, offsetWidth : null, offsetHeight : null, __listeners : null, __vdom : null, __htmlSnippet : null};
+hxdom.HtmlSerializer.prettyPrint = false;
+hxdom.HtmlSerializer.iStr = "\t";
+hxdom.HtmlSerializer.eol = "\r\n";
 dx.client.Main.main();
 })();
